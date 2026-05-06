@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juste le mot</title>
+    <style>
+        /* =========================================
+           VARIABLES DE COULEUR ET DESIGN
+           ========================================= */
+        :root { 
+            --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --primary: #4f46e5; 
+            --success: #10b981; 
+            --danger: #f43f5e; 
+            --accent: #f59e0b; 
+            --text-dark: #0f172a; 
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 20px;
+            /* Couleurs personnalisables pour les mots */
+            --word-color-1: #ef4444;
+            --word-color-2: #f97316;
+            --word-color-3: #eab308;
+            --word-color-4: #22c55e;
+            --word-color-5: #06b6d4;
+            --word-color-6: #8b5cf6;
+            --word-color-7: #ec4899;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: var(--bg-gradient); 
+            color: var(--text-dark); 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; padding: 10px; box-sizing: border-box;
+        }
+
+        /* Conteneur principal de l'application */
+        #app { 
+            background: var(--card-bg); 
+            padding: 2rem; border-radius: var(--radius); 
+            width: 100%; max-width: 500px; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); 
+            text-align: center; position: relative; min-height: 85vh; 
+            display: flex; flex-direction: column; 
+        }
+
+        /* --- HUD (Affichage des infos en haut pendant le jeu) --- */
+        .hud { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 20px; padding: 12px 20px; 
+            background: #f8fafc; border-radius: 15px; border: 1px solid var(--border);
+        }
+
+        /* --- GRILLE DE MOTS --- */
+        .card-grid { display: grid; gap: 10px; flex-grow: 1; align-content: center; }
+        .word-btn { 
+            background: #fff; border: 2px solid var(--border); padding: 16px; 
+            border-radius: 12px; font-size: 1.2rem; font-weight: 800; 
+            cursor: pointer; text-transform: uppercase; transition: 0.2s;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .word-btn .word-number {
+            text-align: left; font-size: 0.9em; opacity: 0.7; min-width: 25px;
+        }
+        .word-btn .word-text {
+            flex-grow: 1; text-align: center;
+        }
+        .word-btn.selected { 
+            background: var(--accent) !important; 
+            /* Note: La couleur du texte et de la bordure sont gérées par les styles inline dans JavaScript */
+            transform: scale(1.05); box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        /* --- BOUTONS D'ACTION (Réussi / Passer / Échec) --- */
+        .validation-zone { display: none; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 20px; }
+        button.action { border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; color: white; text-transform: uppercase; }
+        .btn-green { background: var(--success); }
+        .btn-red { background: var(--danger); }
+        .btn-gray { background: var(--text-muted); }
+        .btn-primary { background: var(--primary); width: 100%; margin-top: 15px; }
+        
+        /* Bouton Paramètres flottant (pour l'accueil) */
+        .settings-btn-floating {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+        .settings-btn-floating:hover { transform: rotate(45deg); }
+
+        /* --- LISTE DE SÉLECTION DE DECKS (UI d'accueil) --- */
+        .deck-checkbox-list {
+            text-align: left;
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .deck-checkbox-label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .deck-checkbox-label input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        /* --- DASHBOARD ADMIN --- */
+        #admin-panel { 
+            display: none; position: absolute; top:0; left:0; width:100%; height:100%; 
+            background: white; border-radius: var(--radius); z-index: 50; padding: 20px; 
+            box-sizing: border-box; flex-direction: column; text-align: left;
+        }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
+        .tab { flex:1; padding: 8px; border:none; border-radius: 7px; cursor:pointer; font-weight:bold; color: var(--text-muted); background:transparent; }
+        .tab.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .tab-content { display: none; flex-direction: column; gap: 15px; height: 90%; overflow-y: auto; }
+        .tab-content.active { display: flex; }
+
+        select, input[type="text"], input[type="number"], textarea { padding: 12px; border: 2px solid var(--border); border-radius: 10px; width: 100%; box-sizing: border-box; font-size: 1rem; }
+        .deck-item { display: flex; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; align-items: center; border: 1px solid var(--border); }
+        
+        /* --- ÉDITION DE MOTS --- */
+        .word-edit-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .word-edit-item:hover {
+            background: #f8fafc;
+        }
+        .word-index {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            min-width: 30px;
+            text-align: center;
+        }
+        .word-edit-input {
+            flex-grow: 1;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin: 0 10px;
+            font-size: 0.9rem;
+        }
+        .word-edit-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+        .word-edit-btn.move {
+            background: var(--text-muted);
+            padding: 4px 6px;
+        }
+        
+        /* --- GÉNÉRATEUR IA --- */
+        .generated-word-item {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 8px;
+            margin: 3px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .score-big { font-size: 5rem; color: var(--primary); font-weight: 900; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="start-screen" style="display:flex; flex-direction: column; justify-content: center; height: 100%;">
+        <button class="settings-btn-floating" onclick="openAdmin()" title="Ouvrir les paramètres">⚙️</button>
+        
+        <h1 style="color: var(--primary); margin-bottom: 5px; margin-top: 0;">Juste le mot</h1>
+        <p style="margin-top: 0; color: var(--text-muted);">Sélectionnez vos decks pour cette partie</p>
+        
+        <div id="deck-checkbox-container" class="deck-checkbox-list"></div>
+        
+        <button class="action btn-primary" onclick="startGame()">LANCER LA PARTIE</button>
+    </div>
+
+    <div id="game-screen" style="display: none; flex-direction: column; height: 100%;">
+        <div class="hud">
+            <div>Score: <b id="ui-score">0</b></div>
+            <div id="ui-deck-name" style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Deck: -</div>
+            <button onclick="openAdmin()" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="Ouvrir les paramètres">⚙️</button>
+        </div>
+
+        <div id="card-container" class="card-grid"></div>
+        <p id="progress-text" style="color: var(--text-muted); margin: 15px 0;">Carte 1/13</p>
+
+        <div id="validation-ui" class="validation-zone">
+            <button class="action btn-green" onclick="handleResult('win')">RÉUSSI</button>
+            <button class="action btn-gray" onclick="handleResult('pass')">PASSER</button>
+            <button class="action btn-red" onclick="handleResult('fail')">ÉCHEC</button>
+        </div>
+    </div>
+
+    <div id="end-screen" style="display:none; flex-direction: column; justify-content: center; height: 100%;">
+        <h1>Terminé !</h1>
+        <div class="score-big" id="final-score">0</div>
+        <button class="action btn-primary" onclick="showStartScreen()">RETOUR AU MENU</button>
+    </div>
+
+    <div id="admin-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0">Configuration</h3>
+            <button onclick="closeAdmin()" style="border:none; background:var(--danger); color:white; padding:5px 12px; border-radius:8px; font-weight: bold; cursor: pointer;">X</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('tab-lists')">Mes Listes</button>
+            <button class="tab" onclick="switchTab('tab-create')">Créer / Importer</button>
+            <button class="tab" onclick="switchTab('tab-settings')">Paramètres</button>
+        </div>
+
+        <div id="tab-lists" class="tab-content active">
+            <!-- Écran 1: Liste des listes -->
+            <div id="lists-screen">
+                <h4 style="margin-top: 0;">Mes Listes de Mots</h4>
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">Cliquez sur une liste pour la modifier ou la supprimer.</p>
+                
+                <div id="all-lists-container" style="margin-bottom: 20px;">
+                    <!-- Les listes seront ajoutées ici dynamiquement -->
+                </div>
+                
+                <button class="action btn-primary" onclick="showCreateScreen()" style="width: 100%;">
+                    + CRÉER UNE NOUVELLE LISTE
+                </button>
+            </div>
+            
+            <!-- Écran 2: Édition d'une liste -->
+            <div id="edit-screen" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h4 style="margin: 0;" id="edit-list-title">Modifier la liste</h4>
+                    <button onclick="showListsScreen()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">← Retour</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px;">Nom de la liste :</label>
+                    <input type="text" id="edit-list-name" style="width: 100%;" onchange="updateListName()">
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: bold;">Mots dans la liste :</span>
+                    <span id="edit-word-count" style="color: var(--text-muted); font-size: 0.9rem;">0 mots</span>
+                </div>
+                
+                <div id="edit-words-container" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc; margin-bottom: 15px;">
+                    <!-- Les mots seront ajoutés ici dynamiquement -->
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="new-word-input" placeholder="Nouveau mot..." style="flex-grow: 1;">
+                    <button class="action btn-green" onclick="addWordToList()">AJOUTER</button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <button class="action btn-gray" onclick="sortListAlphabetically()">TRIER ALPHABÉTIQUEMENT</button>
+                    <button class="action btn-gray" onclick="shuffleList()">MÉLANGER</button>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="action btn-primary" onclick="saveListChanges()" style="flex: 2;">💾 SAUVEGARDER</button>
+                    <button class="action btn-gray" onclick="exportCurrentList()" style="flex: 1;">📋 EXPORTER</button>
+                </div>
+                
+                <button class="action btn-red" onclick="deleteCurrentList()" style="width: 100%; margin-top: 15px; opacity: 0.8;">
+                    🗑️ SUPPRIMER CETTE LISTE
+                </button>
+            </div>
+        </div>
+
+        <div id="tab-create" class="tab-content">
+            <h4 style="margin-top: 0;">Créer ou Importer une Liste</h4>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">Choisissez comment créer votre nouvelle liste de mots.</p>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Nom de la nouvelle liste :</label>
+                <input type="text" id="create-list-name" placeholder="Ex: Cinéma, Animaux, Sports..." style="width: 100%;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Méthode de création :</label>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="action btn-gray" onclick="showAddWordsMethod()" style="text-align: left;">
+                        <strong>➕ Ajouter des mots manuellement</strong><br>
+                        <small style="font-weight: normal;">Ajoutez les mots un par un ou collez plusieurs mots</small>
+                    </button>
+                    
+                    <button class="action btn-gray" onclick="showImportMethod()" style="text-align: left;">
+                        <strong>📁 Importer depuis un fichier</strong><br>
+                        <small style="font-weight: normal;">Importez une liste au format JSON</small>
+                    </button>
+                    
+                    <button class="action btn-gray" onclick="showAIMethod()" style="text-align: left;">
+                        <strong>🤖 Générer avec l'IA</strong><br>
+                        <small style="font-weight: normal;">Obtenez un prompt à utiliser avec ChatGPT/Gemini</small>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Méthode: Ajouter des mots -->
+            <div id="add-words-method" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h5 style="margin: 0;">Ajouter des mots</h5>
+                    <button onclick="hideAllMethods()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Ajouter un mot :</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="single-word-input" placeholder="Entrez un mot..." style="flex-grow: 1;">
+                        <button class="action btn-green" onclick="addSingleWord()">AJOUTER</button>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Ou collez plusieurs mots :</label>
+                    <textarea id="bulk-words-input" placeholder="Collez vos mots ici... (séparés par espace, virgule ou retour à la ligne)" style="height: 100px; width: 100%; resize: none;"></textarea>
+                    <button class="action btn-green" onclick="addBulkWords()" style="width: 100%; margin-top: 10px;">AJOUTER TOUS LES MOTS</button>
+                </div>
+                
+                <div id="words-preview-container" style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: bold;">Mots ajoutés :</span>
+                        <span id="preview-word-count">0 mots</span>
+                    </div>
+                    <div id="words-preview" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc; font-size: 0.9rem;">
+                        <!-- Aperçu des mots -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Méthode: Importer -->
+            <div id="import-method" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h5 style="margin: 0;">Importer depuis un fichier</h5>
+                    <button onclick="hideAllMethods()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                </div>
+                
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Importez un fichier JSON contenant une liste de mots.</p>
+                
+                <button class="action btn-primary" onclick="document.getElementById('json-file-input').click()" style="width: 100%; margin-bottom: 10px;">
+                    📁 CHOISIR UN FICHIER JSON
+                </button>
+                <input type="file" id="json-file-input" style="display:none" accept=".json" onchange="handleJsonImport(this)">
+                
+                <div id="import-preview" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: bold;">Fichier détecté :</span>
+                        <span id="import-file-name"></span>
+                    </div>
+                    <div id="import-words-preview" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8fafc; font-size: 0.9rem;">
+                        <!-- Aperçu des mots importés -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Méthode: IA -->
+            <div id="ai-method" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h5 style="margin: 0;">Générer avec l'IA</h5>
+                    <button onclick="hideAllMethods()" style="background: none; border: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                </div>
+                
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Générez un prompt à utiliser avec ChatGPT, Gemini ou autre IA.</p>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Thème :</label>
+                    <input type="text" id="ai-theme-input" placeholder="Ex: Cinéma, Harry Potter, Années 80..." style="width: 100%;">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">Nombre de mots :</label>
+                    <input type="number" id="ai-word-count" value="13" min="5" max="50" style="width: 100%;">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="action btn-primary" onclick="generateAIPromptJSON()" style="flex: 1;">
+                        📄 PROMPT JSON
+                    </button>
+                    <button class="action btn-primary" onclick="generateAIPromptCSV()" style="flex: 1;">
+                        📝 PROMPT LISTE
+                    </button>
+                </div>
+                
+                <!-- Résultat : Prompt JSON -->
+                <div id="ai-prompt-json-result" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-weight: bold;">Prompt JSON :</label>
+                        <small style="color: var(--text-muted);">Pour import direct dans l'app</small>
+                    </div>
+                    <div style="position: relative;">
+                        <textarea id="ai-generated-prompt-json" readonly style="width: 100%; height: 150px; padding: 10px; border: 2px solid var(--border); border-radius: 8px; background: #f8fafc; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        <button onclick="copyAIPromptJSON()" style="position: absolute; top: 5px; right: 5px; background: var(--primary); color: white; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 0.8rem;">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                        <strong>Instructions :</strong> Copiez ce prompt, collez-le dans votre IA, puis importez le JSON généré via l'onglet "Importer".
+                    </p>
+                </div>
+                
+                <!-- Résultat : Prompt CSV -->
+                <div id="ai-prompt-csv-result" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-weight: bold;">Prompt Liste (mots séparés par virgules) :</label>
+                        <small style="color: var(--text-muted);">Pour copier-coller direct</small>
+                    </div>
+                    <div style="position: relative;">
+                        <textarea id="ai-generated-prompt-csv" readonly style="width: 100%; height: 120px; padding: 10px; border: 2px solid var(--border); border-radius: 8px; background: #f8fafc; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+                        <button onclick="copyAIPromptCSV()" style="position: absolute; top: 5px; right: 5px; background: var(--primary); color: white; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 0.8rem;">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                        <strong>Instructions :</strong> Copiez ce prompt, collez-le dans votre IA, puis copiez la liste de mots générée et collez-la dans "Ajouter des mots manuellement".
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Bouton final de création -->
+            <div id="create-actions" style="margin-top: 20px; display: none;">
+                <div style="display: flex; gap: 10px;">
+                    <button class="action btn-primary" onclick="createNewList()" style="flex: 2;">✅ CRÉER LA LISTE</button>
+                    <button class="action btn-gray" onclick="cancelCreation()" style="flex: 1;">ANNULER</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-settings" class="tab-content">
+            <h4 style="margin-top: 0;">Paramètres du Jeu</h4>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Nombre de cartes par manche :</label>
+                <input type="number" id="deck-size-input" value="13" min="5" max="20" style="width: 100%;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Définit combien de cartes seront jouées dans une partie (entre 5 et 20).</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Nombre de mots par carte :</label>
+                <input type="number" id="words-per-card-input" value="5" min="3" max="7" style="width: 100%;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Définit combien de mots seront affichés sur chaque carte (entre 3 et 7, recommandé: 5).</p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 20px 0;">
+            
+            <h5 style="margin: 20px 0 15px 0;">Apparence des cartes</h5>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Police :</label>
+                <select id="font-family-input" style="width: 100%;">
+                    <option value="'Inter', system-ui, sans-serif">Inter (défaut)</option>
+                    <option value="'Arial', sans-serif">Arial</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                    <option value="system-ui">Police système</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Taille de la police :</label>
+                <input type="number" id="font-size-input" value="1.2" min="0.8" max="2.0" step="0.1" style="width: 100%;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Taille des mots (entre 0.8 et 2.0, recommandé: 1.2).</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; margin-bottom: 10px; font-weight: bold;">
+                    <input type="checkbox" id="show-numbers-checkbox" checked style="margin-right: 10px; width: auto;">
+                    Afficher les numéros devant les mots
+                </label>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; margin-bottom: 10px; font-weight: bold;">
+                    <input type="checkbox" id="use-custom-colors-checkbox" style="margin-right: 10px; width: auto;">
+                    Utiliser des couleurs différentes pour chaque mot
+                </label>
+                
+                <div id="custom-colors-section" style="display: none; margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border);">
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Choisissez les couleurs pour chaque mot (3 à 7 mots) :</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px;">
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 1 :</label>
+                            <input type="color" id="color-input-1" value="#ef4444" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 2 :</label>
+                            <input type="color" id="color-input-2" value="#f97316" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 3 :</label>
+                            <input type="color" id="color-input-3" value="#eab308" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 4 :</label>
+                            <input type="color" id="color-input-4" value="#22c55e" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 5 :</label>
+                            <input type="color" id="color-input-5" value="#06b6d4" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 6 :</label>
+                            <input type="color" id="color-input-6" value="#8b5cf6" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; margin-bottom: 3px; display: block;">Mot 7 :</label>
+                            <input type="color" id="color-input-7" value="#ec4899" style="width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="action btn-primary" onclick="saveSettings()" style="width: 100%; margin-bottom: 10px;">💾 SAUVEGARDER LES PARAMÈTRES</button>
+            <button class="action btn-gray" onclick="resetSettings()" style="width: 100%;">🔄 RÉINITIALISER</button>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 20px 0;">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Historique des parties :</label>
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0;">
+                    L'application mémorise les mots déjà joués pour ne plus les proposer.<br>
+                    <span id="played-count">0</span> mots déjà joués.
+                </p>
+                <button class="action btn-gray" onclick="resetHistory()" style="width: 100%; margin-top: 10px;">
+                    🔄 VIDER L'HISTORIQUE
+                </button>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 20px 0;">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Export des données :</label>
+                <button class="action btn-gray" onclick="exportAllData()" style="width: 100%; margin-bottom: 10px;">
+                    💾 SAUVEGARDER TOUTES MES LISTES
+                </button>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Exporte toutes vos listes dans un fichier JSON de sauvegarde.</p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 20px 0;">
+            
+            <button class="action btn-red" onclick="factoryReset()" style="width: 100%; opacity: 0.8;">
+                ⚠️ RÉINITIALISER L'APPLICATION
+            </button>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                <strong>Attention :</strong> Cela supprimera toutes vos listes et l'historique.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =========================================================================
+       CONSTANTES ET ÉTATS
+       ========================================================================= */
+    const STORAGE_DECKS = 'justOne_Decks_v6'; 
+    const STORAGE_HISTORY = 'justOne_History_v6';
+    const STORAGE_SELECTED_DECKS = 'justOne_SelectedDecks_v6';
+    const STORAGE_SETTINGS = 'justOne_Settings_v6';
+
+    let decks = {}; // Base de données principale intacte
+    let playedWords = []; // Défausse virtuelle
+
+    // Paramètres de jeu
+    let activeDeckNames = []; 
+    let gameSessionWords = []; 
+    let currentCardIndex = 0;
+    let score = 0;
+    let deckSize = 13;
+    let wordsPerCard = 5;
+    let selectedWord = null;
+
+    // Paramètres de style
+    let settings = {
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: 1.2,
+        showNumbers: true,
+        useCustomColors: false,
+        customColors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
+    };
+
+    // Liste par défaut si aucune sauvegarde n'existe
+    const DEFAULT_WORDS = [
+        "Batman", "Superman", "Spiderman", "Pikachu", "Zelda", "Mario", "Pizza", "Burger", "Chocolat", 
+        "Avion", "Bateau", "Paris", "Londres", "Soleil", "Lune", "Etoile", "Ocean", "Foret", "Guitare", 
+        "Piano", "Pomme", "Banane", "Fraise", "Citron", "Chien", "Chat", "Lion", "Tigre", "Oiseau"
+    ];
+
+    // Initialisation au lancement de l'application
+    function init() {
+        const savedDecks = localStorage.getItem(STORAGE_DECKS);
+        if (savedDecks) {
+            decks = JSON.parse(savedDecks);
+        } else {
+            decks = { "Général": [...DEFAULT_WORDS] };
+        }
+
+        const savedHistory = localStorage.getItem(STORAGE_HISTORY);
+        if (savedHistory) {
+            playedWords = JSON.parse(savedHistory);
+        }
+
+        const savedSettings = localStorage.getItem(STORAGE_SETTINGS);
+        if (savedSettings) {
+            try {
+                const parsedSettings = JSON.parse(savedSettings);
+                settings = { ...settings, ...parsedSettings };
+                console.log('Paramètres chargés depuis localStorage:', settings);
+            } catch (e) {
+                console.error('Erreur lors du chargement des paramètres:', e);
+            }
+        }
+
+        document.getElementById('played-count').textContent = playedWords.length;
+        applySettings();
+        showStartScreen();
+    }
+
+    /* =========================================================================
+       ÉCRAN D'ACCUEIL (Rendu des listes)
+       ========================================================================= */
+    function showStartScreen() {
+        // Cacher le reste, afficher l'accueil
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'none';
+        document.getElementById('start-screen').style.display = 'flex';
+        
+        updateAdminSelectors();
+
+        // Récupérer les listes sélectionnées précédemment
+        const savedSelectedDecks = localStorage.getItem(STORAGE_SELECTED_DECKS);
+        let selectedDecks = savedSelectedDecks ? JSON.parse(savedSelectedDecks) : [];
+        
+        // Rendu dynamique des cases à cocher pour les decks
+        const container = document.getElementById('deck-checkbox-container');
+        container.innerHTML = "";
+        
+        Object.keys(decks).forEach((name, index) => {
+            const label = document.createElement('label');
+            label.className = 'deck-checkbox-label';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = name;
+            // Restaurer la sélection sauvegardée, ou sélectionner le premier par défaut
+            if (selectedDecks.includes(name)) {
+                checkbox.checked = true;
+            } else if (index === 0 && selectedDecks.length === 0) {
+                checkbox.checked = true;
+            }
+            
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(` ${index + 1}. ${name} (${decks[name].length} mots)`));
+            container.appendChild(label);
+        });
+    }
+
+    // Mise à jour de la liste déroulante dans l'admin
+    function updateAdminSelectors() {
+        const sel = document.getElementById('target-deck-select');
+        sel.innerHTML = "";
+        Object.keys(decks).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = `${name} (${decks[name].length} mots)`;
+            sel.appendChild(opt);
+        });
+    }
+
+    /* =========================================================================
+       LANCEMENT DE LA PARTIE
+       ========================================================================= */
+    function startGame() {
+        deckSize = parseInt(document.getElementById('deck-size-input').value) || 13;
+        wordsPerCard = parseInt(document.getElementById('words-per-card-input').value) || 5;
+        activeDeckNames = [];
+        let combinedWords = [];
+        
+        console.log(`Lancement de la partie - deckSize: ${deckSize}, wordsPerCard: ${wordsPerCard}`);
+        
+        // Récupération des decks sélectionnés par l'utilisateur
+        const checkboxes = document.querySelectorAll('#deck-checkbox-container input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            activeDeckNames.push(cb.value);
+            combinedWords = combinedWords.concat(decks[cb.value]);
+        });
+
+        if (activeDeckNames.length === 0) {
+            alert("Veuillez sélectionner au moins un deck.");
+            return;
+        }
+        
+        console.log(`Listes sélectionnées: ${activeDeckNames.join(', ')}`);
+        console.log(`Mots combinés avant déduplication: ${combinedWords.length}`);
+        
+        // Sauvegarder les listes sélectionnées pour les restaurer au prochain lancement
+        localStorage.setItem(STORAGE_SELECTED_DECKS, JSON.stringify(activeDeckNames));
+
+        // Nettoyage des doublons éventuels entre decks
+        combinedWords = [...new Set(combinedWords)];
+        console.log(`Mots combinés après déduplication: ${combinedWords.length}`);
+        
+        const requiredWords = deckSize * wordsPerCard;
+        console.log(`Mots requis pour ${deckSize} cartes: ${requiredWords}`);
+
+        // Soustraction des mots déjà joués (historique)
+        let availableWords = combinedWords.filter(w => !playedWords.includes(w));
+        console.log(`Mots disponibles (après historique): ${availableWords.length}`);
+
+        // Gestion de l'épuisement des decks : on vide l'historique lié à ces mots
+        if (availableWords.length < requiredWords) {
+            alert("Les decks sélectionnés sont épuisés ! L'historique pour ces mots a été effacé et la pile est remélangée.");
+            playedWords = playedWords.filter(w => !combinedWords.includes(w));
+            saveHistory();
+            availableWords = combinedWords; 
+            console.log(`Après reset historique: ${availableWords.length} mots disponibles`);
+        }
+
+        // Sécurité ultime si le deck est vraiment trop petit
+        if (availableWords.length < requiredWords) {
+            alert(`Attention : vos decks sélectionnés ne contiennent que ${availableWords.length} mots uniques au total. Vous avez demandé ${deckSize} cartes avec ${wordsPerCard} mots chacune (soit ${requiredWords} mots au total). Veuillez ajouter des mots ou réduire le nombre de cartes.`);
+            return;
+        }
+
+        gameSessionWords = availableWords;
+        shuffle(gameSessionWords);
+        
+        currentCardIndex = 0;
+        score = 0;
+
+        // Transition d'écran
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'flex';
+        
+        // Affichage dynamique des noms de decks
+        let headerText = activeDeckNames.join(", ");
+        if (activeDeckNames.length > 2) headerText = `Mix (${activeDeckNames.length} decks)`;
+        document.getElementById('ui-deck-name').textContent = `Deck: ${headerText}`;
+        
+        console.log(`Prêt à afficher ${deckSize} cartes avec ${wordsPerCard} mots chacune`);
+        renderCard();
+    }
+
+    /* =========================================================================
+       MOTEUR DE JEU
+       ========================================================================= */
+    function renderCard() {
+        console.log(`Affichage de la carte ${currentCardIndex + 1}/${deckSize} (mots: ${wordsPerCard})`);
+        
+        const container = document.getElementById('card-container');
+        container.innerHTML = "";
+        selectedWord = null;
+        document.getElementById('validation-ui').style.display = 'none';
+        
+        document.getElementById('progress-text').textContent = `Carte ${currentCardIndex + 1} / ${deckSize}`;
+        document.getElementById('ui-score').textContent = score;
+
+        // Extraction des mots pour la carte courante (nombre de mots par carte)
+        const startIdx = currentCardIndex * wordsPerCard;
+        const currentWords = gameSessionWords.slice(startIdx, startIdx + wordsPerCard);
+        
+        console.log(`Mots de cette carte (indices ${startIdx} à ${startIdx + wordsPerCard - 1}):`, currentWords);
+
+        console.log('Rendu des cartes - useCustomColors:', settings.useCustomColors);
+
+        currentWords.forEach((word, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'word-btn';
+            btn.style.fontFamily = settings.fontFamily;
+            btn.style.fontSize = `${settings.fontSize}rem`;
+            
+            // Appliquer la couleur personnalisée si activée
+            if (settings.useCustomColors) {
+                const color = settings.customColors[index % settings.customColors.length];
+                console.log(`Mot ${index + 1} (${word}): couleur = ${color}`);
+                btn.style.color = color;
+                btn.style.borderColor = color;
+                // Stocker la couleur dans un data attribute pour l'état sélectionné
+                btn.dataset.color = color;
+            }
+            
+            // Créer le numéro et le mot séparément
+            const numberSpan = document.createElement('span');
+            numberSpan.className = 'word-number';
+            numberSpan.style.display = settings.showNumbers ? 'block' : 'none';
+            numberSpan.textContent = `${index + 1}.`;
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'word-text';
+            textSpan.textContent = word;
+            
+            btn.appendChild(numberSpan);
+            btn.appendChild(textSpan);
+            
+            btn.onclick = () => {
+                // Gestion de la sélection visuelle unique
+                document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedWord = word;
+                document.getElementById('validation-ui').style.display = 'grid';
+                
+                // Appliquer la couleur personnalisée même en état sélectionné
+                if (settings.useCustomColors && btn.dataset.color) {
+                    btn.style.color = btn.dataset.color;
+                    btn.style.borderColor = btn.dataset.color;
+                }
+            };
+            container.appendChild(btn);
+        });
+        
+        console.log(`Carte ${currentCardIndex + 1}/${deckSize} affichée avec ${currentWords.length} mots`);
+    }
+
+    function handleResult(res) {
+        // Ajout du mot sélectionné à la défausse virtuelle
+        if (selectedWord) {
+            playedWords.push(selectedWord);
+            saveHistory();
+            document.getElementById('played-count').textContent = playedWords.length;
+        }
+
+        // Calcul du score et de l'avancée
+        if (res === 'win') score++;
+        if (res === 'fail') currentCardIndex++; // Pénalité
+
+        currentCardIndex++;
+        
+        // Vérification de la fin de manche
+        if (currentCardIndex >= deckSize) {
+            showEnd();
+        } else {
+            renderCard();
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'flex';
+        document.getElementById('final-score').textContent = score;
+    }
+
+    /* =========================================================================
+       ADMIN / GESTION DES DECKS
+       ========================================================================= */
+    function createNewDeck() {
+        const name = document.getElementById('new-deck-name').value.trim();
+        if (name && !decks[name]) {
+            decks[name] = [];
+            saveDecks();
+            updateAdminSelectors();
+            renderDeckList();
+            document.getElementById('new-deck-name').value = "";
+        } else if (decks[name]) {
+            alert("Ce nom de deck existe déjà.");
+        }
+    }
+
+    // Ces fonctions sont obsolètes dans la nouvelle interface
+    // Elles sont remplacées par les fonctions dans l'onglet "Créer / Importer"
+
+    function resetHistory() {
+        if(confirm("Effacer l'historique ? L'application vous proposera à nouveau tous les mots lors des prochaines parties.")) {
+            playedWords = [];
+            saveHistory();
+            document.getElementById('played-count').textContent = 0;
+        }
+    }
+
+    function factoryReset() {
+        if(confirm("Réinitialiser l'application entière ? Cela effacera VOS DECKS IMPORTÉS et votre historique.")) {
+            localStorage.removeItem(STORAGE_DECKS);
+            localStorage.removeItem(STORAGE_HISTORY);
+            location.reload();
+        }
+    }
+
+    /* =========================================================================
+       CONTRÔLE DES PANNEAUX
+       ========================================================================= */
+    function openAdmin() { 
+        document.getElementById('admin-panel').style.display = 'flex'; 
+        
+        // Initialiser l'onglet Mes Listes
+        showListsScreen();
+        
+        // Réinitialiser la création
+        cancelCreation();
+    }
+    
+    function closeAdmin() { 
+        document.getElementById('admin-panel').style.display = 'none'; 
+        // Rafraîchir les checkboxes si on est sur l'écran d'accueil
+        if (document.getElementById('start-screen').style.display !== 'none') {
+            showStartScreen();
+        }
+    }
+    
+    function switchTab(id) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(id).classList.add('active');
+    }
+
+    function saveDecks() { localStorage.setItem(STORAGE_DECKS, JSON.stringify(decks)); }
+    function saveHistory() { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(playedWords)); }
+    
+    // Mélange Fisher-Yates
+    function shuffle(a) { 
+        for(let i=a.length-1; i>0; i--){ 
+            const j=Math.floor(Math.random()*(i+1)); 
+            [a[i],a[j]]=[a[j],a[i]]; 
+        } 
+    }
+
+    /* =========================================================================
+       ONGLET "MES LISTES"
+       ========================================================================= */
+    let currentEditingList = null;
+    let listChangesMade = false;
+    
+    // Afficher l'écran des listes
+    function showListsScreen() {
+        document.getElementById('lists-screen').style.display = 'block';
+        document.getElementById('edit-screen').style.display = 'none';
+        renderAllLists();
+    }
+    
+    // Afficher l'écran d'édition
+    function showEditScreen(listName) {
+        currentEditingList = listName;
+        listChangesMade = false;
+        
+        document.getElementById('lists-screen').style.display = 'none';
+        document.getElementById('edit-screen').style.display = 'block';
+        
+        document.getElementById('edit-list-title').textContent = `Modifier : ${listName}`;
+        document.getElementById('edit-list-name').value = listName;
+        document.getElementById('edit-word-count').textContent = `${decks[listName].length} mots`;
+        
+        renderEditWords(listName);
+    }
+    
+    // Afficher l'écran de création
+    function showCreateScreen() {
+        switchTab('tab-create');
+    }
+    
+    // Rendre toutes les listes
+    function renderAllLists() {
+        const container = document.getElementById('all-lists-container');
+        container.innerHTML = '';
+        
+        if (Object.keys(decks).length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                    <p>Vous n'avez pas encore de liste.</p>
+                    <p>Créez votre première liste !</p>
+                </div>
+            `;
+            return;
+        }
+        
+        Object.keys(decks).forEach((name, index) => {
+            const listDiv = document.createElement('div');
+            listDiv.className = 'deck-item';
+            listDiv.style.cursor = 'pointer';
+            listDiv.onclick = () => showEditScreen(name);
+            
+            listDiv.innerHTML = `
+                <div>
+                    <strong>${index + 1}. ${name}</strong><br>
+                    <small style="color: var(--text-muted);">${decks[name].length} mots</small>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="event.stopPropagation(); showEditScreen('${name}')" 
+                            style="background: var(--primary); color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem;">
+                        ✏️ Éditer
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteListPrompt('${name}')" 
+                            style="background: var(--danger); color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem;">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(listDiv);
+        });
+    }
+    
+    // Rendre les mots pour l'édition
+    function renderEditWords(listName) {
+        const container = document.getElementById('edit-words-container');
+        const words = decks[listName];
+        
+        container.innerHTML = '';
+        
+        if (words.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                    Cette liste est vide. Ajoutez des mots ci-dessous.
+                </div>
+            `;
+            return;
+        }
+        
+        words.forEach((word, index) => {
+            const item = document.createElement('div');
+            item.className = 'word-edit-item';
+            item.innerHTML = `
+                <span class="word-index">${index + 1}</span>
+                <input type="text" class="word-edit-input" value="${word}" 
+                       onchange="updateWordInList(${index}, this.value)"
+                       onkeyup="if(event.key === 'Enter') this.blur()">
+                <button class="word-edit-btn move" onclick="moveWordInList(${index}, -1)" title="Monter">↑</button>
+                <button class="word-edit-btn move" onclick="moveWordInList(${index}, 1)" title="Descendre">↓</button>
+                <button class="word-edit-btn" onclick="removeWordFromList(${index})" title="Supprimer">×</button>
+            `;
+            container.appendChild(item);
+        });
+    }
+    
+    // Mettre à jour un mot dans la liste
+    function updateWordInList(index, newWord) {
+        if (!currentEditingList) return;
+        
+        newWord = newWord.trim();
+        if (!newWord) {
+            alert("Un mot ne peut pas être vide.");
+            renderEditWords(currentEditingList);
+            return;
+        }
+        
+        // Vérifier les contraintes
+        if (newWord.includes(' ') || newWord.includes('-')) {
+            alert("Les mots ne doivent pas contenir d'espaces ou de traits d'union.");
+            renderEditWords(currentEditingList);
+            return;
+        }
+        
+        decks[currentEditingList][index] = newWord;
+        listChangesMade = true;
+        
+        // Feedback visuel
+        const input = event.target;
+        input.style.borderColor = 'var(--success)';
+        setTimeout(() => {
+            input.style.borderColor = '';
+        }, 1000);
+    }
+    
+    // Supprimer un mot de la liste
+    function removeWordFromList(index) {
+        if (!currentEditingList || !confirm(`Supprimer le mot "${decks[currentEditingList][index]}" ?`)) {
+            return;
+        }
+        
+        decks[currentEditingList].splice(index, 1);
+        listChangesMade = true;
+        renderEditWords(currentEditingList);
+        document.getElementById('edit-word-count').textContent = `${decks[currentEditingList].length} mots`;
+    }
+    
+    // Ajouter un mot à la liste
+    function addWordToList() {
+        if (!currentEditingList) return;
+        
+        const input = document.getElementById('new-word-input');
+        const newWord = input.value.trim();
+        
+        if (!newWord) {
+            alert("Veuillez entrer un mot.");
+            return;
+        }
+        
+        // Vérifier les contraintes
+        if (newWord.includes(' ') || newWord.includes('-')) {
+            alert("Les mots ne doivent pas contenir d'espaces ou de traits d'union.");
+            return;
+        }
+        
+        // Vérifier si le mot existe déjà
+        if (decks[currentEditingList].includes(newWord)) {
+            alert(`Le mot "${newWord}" existe déjà dans cette liste.`);
+            return;
+        }
+        
+        decks[currentEditingList].push(newWord);
+        listChangesMade = true;
+        
+        // Réinitialiser et rafraîchir
+        input.value = '';
+        renderEditWords(currentEditingList);
+        document.getElementById('edit-word-count').textContent = `${decks[currentEditingList].length} mots`;
+        
+        // Scroll vers le bas
+        const container = document.getElementById('edit-words-container');
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    // Déplacer un mot dans la liste
+    function moveWordInList(index, direction) {
+        if (!currentEditingList) return;
+        
+        const words = decks[currentEditingList];
+        const newIndex = index + direction;
+        
+        if (newIndex < 0 || newIndex >= words.length) return;
+        
+        [words[index], words[newIndex]] = [words[newIndex], words[index]];
+        listChangesMade = true;
+        renderEditWords(currentEditingList);
+    }
+    
+    // Mettre à jour le nom de la liste
+    function updateListName() {
+        if (!currentEditingList) return;
+        
+        const newName = document.getElementById('edit-list-name').value.trim();
+        if (!newName) {
+            alert("Le nom de la liste ne peut pas être vide.");
+            document.getElementById('edit-list-name').value = currentEditingList;
+            return;
+        }
+        
+        if (newName !== currentEditingList) {
+            if (decks[newName]) {
+                alert("Une liste avec ce nom existe déjà.");
+                document.getElementById('edit-list-name').value = currentEditingList;
+                return;
+            }
+            
+            // Renommer la liste
+            decks[newName] = decks[currentEditingList];
+            delete decks[currentEditingList];
+            currentEditingList = newName;
+            listChangesMade = true;
+            
+            document.getElementById('edit-list-title').textContent = `Modifier : ${newName}`;
+        }
+    }
+    
+    // Trier la liste alphabétiquement
+    function sortListAlphabetically() {
+        if (!currentEditingList) return;
+        
+        decks[currentEditingList].sort((a, b) => a.localeCompare(b, 'fr'));
+        listChangesMade = true;
+        renderEditWords(currentEditingList);
+    }
+    
+    // Mélanger la liste
+    function shuffleList() {
+        if (!currentEditingList) return;
+        
+        shuffle(decks[currentEditingList]);
+        listChangesMade = true;
+        renderEditWords(currentEditingList);
+    }
+    
+    // Sauvegarder les modifications
+    function saveListChanges() {
+        if (!currentEditingList) return;
+        
+        saveDecks();
+        listChangesMade = false;
+        
+        // Feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = "✓ Sauvegardé !";
+        btn.style.background = 'var(--success)';
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+        }, 2000);
+        
+        // Mettre à jour l'affichage des listes
+        renderAllLists();
+    }
+    
+    // Exporter la liste courante
+    function exportCurrentList() {
+        if (!currentEditingList) return;
+        
+        const data = { 
+            metadata: { 
+                title: currentEditingList, 
+                theme: currentEditingList, 
+                language: "fr", 
+                wordCount: decks[currentEditingList].length 
+            }, 
+            words: decks[currentEditingList] 
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentEditingList}.json`;
+        a.click();
+    }
+    
+    // Supprimer la liste courante
+    function deleteCurrentList() {
+        if (!currentEditingList || Object.keys(decks).length <= 1) {
+            alert("Vous devez garder au moins une liste.");
+            return;
+        }
+        
+        if (confirm(`Supprimer définitivement la liste "${currentEditingList}" ?`)) {
+            delete decks[currentEditingList];
+            saveDecks();
+            showListsScreen();
+        }
+    }
+    
+    // Demander confirmation avant suppression
+    function deleteListPrompt(listName) {
+        if (Object.keys(decks).length <= 1) {
+            alert("Vous devez garder au moins une liste.");
+            return;
+        }
+        
+        if (confirm(`Supprimer définitivement la liste "${listName}" ?`)) {
+            delete decks[listName];
+            saveDecks();
+            renderAllLists();
+        }
+    }
+
+    /* =========================================================================
+       ONGLET "CRÉER / IMPORTER"
+       ========================================================================= */
+    let newListWords = [];
+    let newListName = '';
+    
+    // Afficher la méthode d'ajout de mots
+    function showAddWordsMethod() {
+        hideAllMethods();
+        document.getElementById('add-words-method').style.display = 'block';
+        document.getElementById('create-actions').style.display = 'block';
+        updateWordsPreview();
+    }
+    
+    // Afficher la méthode d'import
+    function showImportMethod() {
+        hideAllMethods();
+        document.getElementById('import-method').style.display = 'block';
+        document.getElementById('create-actions').style.display = 'block';
+    }
+    
+    // Afficher la méthode IA
+    function showAIMethod() {
+        hideAllMethods();
+        document.getElementById('ai-method').style.display = 'block';
+        document.getElementById('create-actions').style.display = 'block';
+    }
+    
+    // Cacher toutes les méthodes
+    function hideAllMethods() {
+        document.getElementById('add-words-method').style.display = 'none';
+        document.getElementById('import-method').style.display = 'none';
+        document.getElementById('ai-method').style.display = 'none';
+        document.getElementById('create-actions').style.display = 'none';
+        document.getElementById('ai-prompt-json-result').style.display = 'none';
+        document.getElementById('ai-prompt-csv-result').style.display = 'none';
+        document.getElementById('import-preview').style.display = 'none';
+    }
+    
+    // Annuler la création
+    function cancelCreation() {
+        newListWords = [];
+        newListName = '';
+        document.getElementById('create-list-name').value = '';
+        document.getElementById('single-word-input').value = '';
+        document.getElementById('bulk-words-input').value = '';
+        document.getElementById('ai-theme-input').value = '';
+        hideAllMethods();
+    }
+    
+    // Ajouter un mot unique
+    function addSingleWord() {
+        const input = document.getElementById('single-word-input');
+        const word = input.value.trim();
+        
+        if (!word) {
+            alert("Veuillez entrer un mot.");
+            return;
+        }
+        
+        // Vérifier les contraintes
+        if (word.includes(' ') || word.includes('-')) {
+            alert("Les mots ne doivent pas contenir d'espaces ou de traits d'union.");
+            return;
+        }
+        
+        // Vérifier si le mot existe déjà
+        if (newListWords.includes(word)) {
+            alert(`Le mot "${word}" existe déjà dans la liste.`);
+            return;
+        }
+        
+        newListWords.push(word);
+        input.value = '';
+        updateWordsPreview();
+    }
+    
+    // Ajouter plusieurs mots
+    function addBulkWords() {
+        const text = document.getElementById('bulk-words-input').value;
+        const words = text.split(/[\n, ]+/)
+            .map(w => w.trim())
+            .filter(w => w.length > 0 && !w.includes(' ') && !w.includes('-'));
+        
+        if (words.length === 0) {
+            alert("Aucun mot valide trouvé. Les mots ne doivent pas contenir d'espaces ou de traits d'union.");
+            return;
+        }
+        
+        newListWords = [...new Set([...newListWords, ...words])];
+        document.getElementById('bulk-words-input').value = '';
+        updateWordsPreview();
+    }
+    
+    // Mettre à jour l'aperçu des mots
+    function updateWordsPreview() {
+        const container = document.getElementById('words-preview');
+        const countElement = document.getElementById('preview-word-count');
+        
+        countElement.textContent = `${newListWords.length} mots`;
+        
+        if (newListWords.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Aucun mot ajouté pour le moment.</div>';
+            return;
+        }
+        
+        container.innerHTML = newListWords.map((word, index) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #eee;">
+                <span>${index + 1}. ${word}</span>
+                <button onclick="removeWordFromPreview(${index})" style="background: var(--danger); color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 0.8rem;">
+                    ×
+                </button>
+            </div>
+        `).join('');
+    }
+    
+    // Supprimer un mot de l'aperçu
+    function removeWordFromPreview(index) {
+        newListWords.splice(index, 1);
+        updateWordsPreview();
+    }
+    
+    // Gérer l'import JSON
+    function handleJsonImport(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                let importedWords = data.words || data;
+                let title = (data.metadata && data.metadata.title) || file.name.replace('.json', '');
+                
+                // Supprimer les doublons dans les mots importés
+                const originalCount = importedWords.length;
+                const uniqueWords = [...new Set(importedWords)];
+                
+                // Utiliser le nom du fichier si aucun nom n'est saisi
+                const listNameInput = document.getElementById('create-list-name');
+                if (!listNameInput.value.trim()) {
+                    listNameInput.value = title;
+                }
+                
+                newListWords = uniqueWords;
+                
+                // Afficher l'aperçu
+                document.getElementById('import-file-name').textContent = file.name;
+                let previewMessage = `${uniqueWords.length} mots chargés depuis "${title}"`;
+                if (originalCount > uniqueWords.length) {
+                    previewMessage += ` (${originalCount - uniqueWords.length} doublon(s) supprimé(s))`;
+                }
+                document.getElementById('import-words-preview').innerHTML = `
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">
+                        ${previewMessage}
+                    </div>
+                `;
+                document.getElementById('import-preview').style.display = 'block';
+                
+                // Mettre à jour l'aperçu général
+                updateWordsPreview();
+                
+            } catch (err) {
+                alert("Erreur de lecture : le fichier JSON est invalide.");
+            }
+            input.value = "";
+        };
+        reader.readAsText(file);
+    }
+    
+    // Générer le prompt IA (format JSON)
+    function generateAIPromptJSON() {
+        const theme = document.getElementById('ai-theme-input').value.trim();
+        const count = parseInt(document.getElementById('ai-word-count').value) || 13;
+        
+        if (!theme) {
+            alert("Veuillez entrer un thème.");
+            return;
+        }
+        
+        if (count < 5 || count > 50) {
+            alert("Le nombre de mots doit être entre 5 et 50.");
+            return;
+        }
+        
+        // Cacher le résultat CSV
+        document.getElementById('ai-prompt-csv-result').style.display = 'none';
+        
+        // Générer le prompt JSON
+        const prompt = `Agis comme un créateur de jeux de société. Je crée une extension pour le jeu 'Juste le mot'. Génère une liste de ${count} mots sur le thème ${theme}.
+Contraintes strictes :
+
+Uniquement des mots simples d'un seul tenant (aucun espace, aucun trait d'union mais qui existe ainsi, conserve les accents).
+
+Des mots connus du grand public (ni trop évidents, ni trop obscurs).
+
+Renvoie uniquement le résultat au format JSON valide selon cette structure exacte :
+{ "metadata": { "title": "${theme}", "theme": "${theme}", "language": "fr", "wordCount": ${count} }, "words": ["Mot1", "Mot2", "Mot3"] }
+N'ajoute aucun texte avant ou après le JSON.`;
+        
+        // Afficher le résultat
+        document.getElementById('ai-generated-prompt-json').value = prompt;
+        document.getElementById('ai-prompt-json-result').style.display = 'block';
+    }
+    
+    // Générer le prompt IA (format liste CSV)
+    function generateAIPromptCSV() {
+        const theme = document.getElementById('ai-theme-input').value.trim();
+        const count = parseInt(document.getElementById('ai-word-count').value) || 13;
+        
+        if (!theme) {
+            alert("Veuillez entrer un thème.");
+            return;
+        }
+        
+        if (count < 5 || count > 50) {
+            alert("Le nombre de mots doit être entre 5 et 50.");
+            return;
+        }
+        
+        // Cacher le résultat JSON
+        document.getElementById('ai-prompt-json-result').style.display = 'none';
+        
+        // Générer le prompt CSV
+        const prompt = `Agis comme un créateur de jeux de société. Je crée une extension pour le jeu 'Juste le mot'. Génère une liste de ${count} mots sur le thème ${theme}.
+Contraintes strictes :
+
+Uniquement des mots simples d'un seul tenant (aucun espace, aucun trait d'union mais qui existe ainsi, conserve les accents).
+
+Des mots connus du grand public (ni trop évidents, ni trop obscurs).
+
+Renvoie uniquement les mots séparés par des virgules, sans aucun autre texte. Exemple :
+Mot1, Mot2, Mot3, Mot4, Mot5`;
+        
+        // Afficher le résultat
+        document.getElementById('ai-generated-prompt-csv').value = prompt;
+        document.getElementById('ai-prompt-csv-result').style.display = 'block';
+    }
+    
+    // Copier le prompt JSON
+    function copyAIPromptJSON() {
+        const promptText = document.getElementById('ai-generated-prompt-json');
+        promptText.select();
+        promptText.setSelectionRange(0, 99999);
+        
+        try {
+            navigator.clipboard.writeText(promptText.value).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = "✓ Copié !";
+                btn.style.background = 'var(--success)';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = 'var(--primary)';
+                }, 2000);
+            });
+        } catch (err) {
+            document.execCommand('copy');
+            alert("Prompt copié dans le presse-papier !");
+        }
+    }
+    
+    // Copier le prompt CSV
+    function copyAIPromptCSV() {
+        const promptText = document.getElementById('ai-generated-prompt-csv');
+        promptText.select();
+        promptText.setSelectionRange(0, 99999);
+        
+        try {
+            navigator.clipboard.writeText(promptText.value).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = "✓ Copié !";
+                btn.style.background = 'var(--success)';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = 'var(--primary)';
+                }, 2000);
+            });
+        } catch (err) {
+            document.execCommand('copy');
+            alert("Prompt copié dans le presse-papier !");
+        }
+    }
+    
+    // Créer la nouvelle liste
+    function createNewList() {
+        newListName = document.getElementById('create-list-name').value.trim();
+        
+        if (!newListName) {
+            alert("Veuillez donner un nom à votre liste.");
+            return;
+        }
+        
+        if (decks[newListName]) {
+            alert("Une liste avec ce nom existe déjà. Choisissez un autre nom.");
+            return;
+        }
+        
+        if (newListWords.length === 0) {
+            alert("Votre liste est vide. Ajoutez au moins un mot.");
+            return;
+        }
+        
+        // Supprimer les doublons
+        const originalCount = newListWords.length;
+        const uniqueWords = [...new Set(newListWords)];
+        const duplicatesRemoved = originalCount - uniqueWords.length;
+        
+        // Créer la liste avec les mots uniques
+        decks[newListName] = uniqueWords;
+        saveDecks();
+        
+        // Réinitialiser et retourner à l'onglet Mes Listes
+        cancelCreation();
+        switchTab('tab-lists');
+        showListsScreen();
+        
+        // Feedback
+        let message = `Liste "${newListName}" créée avec ${uniqueWords.length} mots !`;
+        if (duplicatesRemoved > 0) {
+            message += `\n\nℹ️ ${duplicatesRemoved} doublon(s) automatiquement supprimé(s).`;
+        }
+        alert(message);
+    }
+    
+    /* =========================================================================
+       ONGLET "PARAMÈTRES"
+       ========================================================================= */
+    
+    function applySettings() {
+        console.log('Application des paramètres:', settings);
+        
+        // Mettre à jour les champs des paramètres
+        document.getElementById('font-family-input').value = settings.fontFamily;
+        document.getElementById('font-size-input').value = settings.fontSize;
+        document.getElementById('show-numbers-checkbox').checked = settings.showNumbers;
+        document.getElementById('use-custom-colors-checkbox').checked = settings.useCustomColors;
+        
+        // Afficher/masquer la section des couleurs
+        document.getElementById('custom-colors-section').style.display = settings.useCustomColors ? 'block' : 'none';
+        
+        // Mettre à jour les éditeurs de couleur
+        for (let i = 0; i < 7; i++) {
+            const colorInput = document.getElementById(`color-input-${i + 1}`);
+            if (colorInput) {
+                colorInput.value = settings.customColors[i] || settings.customColors[i % settings.customColors.length];
+            }
+        }
+        
+        // Rafraîchir les cartes si une partie est en cours
+        if (document.getElementById('game-screen').style.display !== 'none') {
+            renderCard();
+        }
+    }
+    
+    function saveSettings() {
+        settings.fontFamily = document.getElementById('font-family-input').value;
+        settings.fontSize = parseFloat(document.getElementById('font-size-input').value);
+        settings.showNumbers = document.getElementById('show-numbers-checkbox').checked;
+        settings.useCustomColors = document.getElementById('use-custom-colors-checkbox').checked;
+        
+        console.log('Sauvegarde des paramètres:', settings);
+        
+        // Sauvegarder les couleurs personnalisées
+        for (let i = 0; i < 7; i++) {
+            const colorInput = document.getElementById(`color-input-${i + 1}`);
+            if (colorInput) {
+                settings.customColors[i] = colorInput.value;
+            }
+        }
+        
+        localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
+        applySettings();
+        alert("Paramètres sauvegardés !");
+    }
+    
+    function resetSettings() {
+        settings = {
+            fontFamily: "'Inter', system-ui, sans-serif",
+            fontSize: 1.2,
+            showNumbers: true,
+            useCustomColors: false,
+            customColors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899']
+        };
+        localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(settings));
+        applySettings();
+        alert("Paramètres réinitialisés aux valeurs par défaut.");
+    }
+    
+    function exportAllData() {
+        const data = {
+            metadata: {
+                exportedAt: new Date().toISOString(),
+                listCount: Object.keys(decks).length,
+                totalWords: Object.values(decks).reduce((sum, words) => sum + words.length, 0)
+            },
+            lists: decks
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `juste-mot-sauvegarde-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    }
+    
+    // Mettre à jour les sélecteurs (fonction existante modifiée)
+    function updateAdminSelectors() {
+        // Cette fonction n'est plus utilisée dans la nouvelle interface
+        // Mais gardons-la pour compatibilité
+    }
+    
+    // Écouteur d'événement pour afficher/masquer la section des couleurs
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkbox = document.getElementById('use-custom-colors-checkbox');
+        const colorsSection = document.getElementById('custom-colors-section');
+        
+        if (checkbox && colorsSection) {
+            checkbox.addEventListener('change', function() {
+                colorsSection.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+    });
+
+    window.onload = init;
+</script>
+</body>
+</html>

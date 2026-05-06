@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Just One - Game Master Edition</title>
+    <style>
+        /* =========================================
+           VARIABLES DE COULEUR ET DESIGN
+           ========================================= */
+        :root { 
+            --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --primary: #4f46e5; 
+            --success: #10b981; 
+            --danger: #f43f5e; 
+            --accent: #f59e0b; 
+            --text-dark: #0f172a; 
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 20px;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: var(--bg-gradient); 
+            color: var(--text-dark); 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; padding: 10px; box-sizing: border-box;
+        }
+
+        /* Conteneur principal de l'application */
+        #app { 
+            background: var(--card-bg); 
+            padding: 2rem; border-radius: var(--radius); 
+            width: 100%; max-width: 500px; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); 
+            text-align: center; position: relative; min-height: 85vh; 
+            display: flex; flex-direction: column; 
+        }
+
+        /* --- HUD (Affichage des infos en haut pendant le jeu) --- */
+        .hud { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 20px; padding: 12px 20px; 
+            background: #f8fafc; border-radius: 15px; border: 1px solid var(--border);
+        }
+
+        /* --- GRILLE DE MOTS --- */
+        .card-grid { display: grid; gap: 10px; flex-grow: 1; align-content: center; }
+        .word-btn { 
+            background: #fff; border: 2px solid var(--border); padding: 16px; 
+            border-radius: 12px; font-size: 1.2rem; font-weight: 800; 
+            cursor: pointer; text-transform: uppercase; transition: 0.2s;
+        }
+        .word-btn.selected { 
+            background: var(--accent) !important; color: white; border-color: #d97706; 
+            transform: scale(1.05); box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        /* --- BOUTONS D'ACTION (Réussi / Passer / Échec) --- */
+        .validation-zone { display: none; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 20px; }
+        button.action { border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; color: white; text-transform: uppercase; }
+        .btn-green { background: var(--success); }
+        .btn-red { background: var(--danger); }
+        .btn-gray { background: var(--text-muted); }
+        .btn-primary { background: var(--primary); width: 100%; margin-top: 15px; }
+        
+        /* Bouton Paramètres flottant (pour l'accueil) */
+        .settings-btn-floating {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+        .settings-btn-floating:hover { transform: rotate(45deg); }
+
+        /* --- LISTE DE SÉLECTION DE DECKS (UI d'accueil) --- */
+        .deck-checkbox-list {
+            text-align: left;
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .deck-checkbox-label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .deck-checkbox-label input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        /* --- DASHBOARD ADMIN --- */
+        #admin-panel { 
+            display: none; position: absolute; top:0; left:0; width:100%; height:100%; 
+            background: white; border-radius: var(--radius); z-index: 50; padding: 20px; 
+            box-sizing: border-box; flex-direction: column; text-align: left;
+        }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
+        .tab { flex:1; padding: 8px; border:none; border-radius: 7px; cursor:pointer; font-weight:bold; color: var(--text-muted); background:transparent; }
+        .tab.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .tab-content { display: none; flex-direction: column; gap: 15px; height: 90%; overflow-y: auto; }
+        .tab-content.active { display: flex; }
+
+        select, input[type="text"], input[type="number"], textarea { padding: 12px; border: 2px solid var(--border); border-radius: 10px; width: 100%; box-sizing: border-box; font-size: 1rem; }
+        .deck-item { display: flex; justify-content: space-between; padding: 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; align-items: center; border: 1px solid var(--border); }
+        
+        .score-big { font-size: 5rem; color: var(--primary); font-weight: 900; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="start-screen" style="display:flex; flex-direction: column; justify-content: center; height: 100%;">
+        <button class="settings-btn-floating" onclick="openAdmin()" title="Ouvrir les paramètres">⚙️</button>
+        
+        <h1 style="color: var(--primary); margin-bottom: 5px; margin-top: 0;">Just One</h1>
+        <p style="margin-top: 0; color: var(--text-muted);">Sélectionnez vos decks pour cette partie</p>
+        
+        <div id="deck-checkbox-container" class="deck-checkbox-list"></div>
+        
+        <button class="action btn-primary" onclick="startGame()">LANCER LA PARTIE</button>
+    </div>
+
+    <div id="game-screen" style="display: none; flex-direction: column; height: 100%;">
+        <div class="hud">
+            <div>Score: <b id="ui-score">0</b></div>
+            <div id="ui-deck-name" style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Deck: -</div>
+            <button onclick="openAdmin()" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="Ouvrir les paramètres">⚙️</button>
+        </div>
+
+        <div id="card-container" class="card-grid"></div>
+        <p id="progress-text" style="color: var(--text-muted); margin: 15px 0;">Carte 1/13</p>
+
+        <div id="validation-ui" class="validation-zone">
+            <button class="action btn-green" onclick="handleResult('win')">RÉUSSI</button>
+            <button class="action btn-gray" onclick="handleResult('pass')">PASSER</button>
+            <button class="action btn-red" onclick="handleResult('fail')">ÉCHEC</button>
+        </div>
+    </div>
+
+    <div id="end-screen" style="display:none; flex-direction: column; justify-content: center; height: 100%;">
+        <h1>Terminé !</h1>
+        <div class="score-big" id="final-score">0</div>
+        <button class="action btn-primary" onclick="showStartScreen()">RETOUR AU MENU</button>
+    </div>
+
+    <div id="admin-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0">Configuration</h3>
+            <button onclick="closeAdmin()" style="border:none; background:var(--danger); color:white; padding:5px 12px; border-radius:8px; font-weight: bold; cursor: pointer;">X</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('tab-decks')">Mes Decks</button>
+            <button class="tab" onclick="switchTab('tab-add')">Ajout/Import</button>
+            <button class="tab" onclick="switchTab('tab-options')">Options</button>
+        </div>
+
+        <div id="tab-decks" class="tab-content active">
+            <div id="deck-list-container"></div>
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%;">
+            <label style="font-size: 0.9rem; font-weight: bold;">Créer un deck :</label>
+            <input type="text" id="new-deck-name" placeholder="Nom du deck...">
+            <button class="action btn-green" style="width:100%; margin-top:5px;" onclick="createNewDeck()">CRÉER UN DECK VIDE</button>
+        </div>
+
+        <div id="tab-add" class="tab-content">
+            <label style="font-weight: bold;">Ajouter des mots vers :</label>
+            <select id="target-deck-select"></select>
+            <textarea id="bulk-input" placeholder="Collez vos mots ici... (séparés par espace ou virgule)" style="height: 100px; resize: none;"></textarea>
+            <button class="action btn-green" onclick="bulkAdd()">AJOUTER LES MOTS</button>
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 15px 0;">
+            <button class="action btn-gray" onclick="exportCurrentDeck()" style="width: 100%; margin-bottom: 10px;">EXPORTER CE DECK (.json)</button>
+            <button class="action btn-gray" onclick="document.getElementById('file-input').click()" style="width: 100%;">IMPORTER UN FICHIER JSON</button>
+            <input type="file" id="file-input" style="display:none" accept=".json" onchange="handleImport(this)">
+        </div>
+
+        <div id="tab-options" class="tab-content">
+            <label style="font-weight: bold;">Nombre de cartes par manche :</label>
+            <input type="number" id="deck-size-input" value="13" min="1">
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%; margin: 15px 0;">
+            
+            <label style="font-weight: bold;">Historique des parties :</label>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0;">L'application mémorise les mots déjà joués (<span id="played-count">0</span> mots brûlés) pour ne plus les proposer jusqu'à ce que les decks soient épuisés.</p>
+            <button class="action btn-gray" style="width:100%; margin-bottom: 15px;" onclick="resetHistory()">VIDER L'HISTORIQUE DES MOTS JOUÉS</button>
+            
+            <button class="action btn-red" style="width:100%; opacity: 0.8;" onclick="factoryReset()">RÉINITIALISER L'APPLICATION</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =========================================================================
+       CONSTANTES ET ÉTATS
+       ========================================================================= */
+    const STORAGE_DECKS = 'justOne_Decks_v5'; 
+    const STORAGE_HISTORY = 'justOne_History_v5'; 
+
+    let decks = {}; // Base de données principale intacte
+    let playedWords = []; // Défausse virtuelle
+
+    let activeDeckNames = []; 
+    let gameSessionWords = []; 
+    let currentCardIndex = 0;
+    let score = 0;
+    let deckSize = 13;
+    let selectedWord = null;
+
+    // Liste par défaut si aucune sauvegarde n'existe
+    const DEFAULT_WORDS = [
+        "Batman", "Superman", "Spiderman", "Pikachu", "Zelda", "Mario", "Pizza", "Burger", "Chocolat", 
+        "Avion", "Bateau", "Paris", "Londres", "Soleil", "Lune", "Etoile", "Ocean", "Foret", "Guitare", 
+        "Piano", "Pomme", "Banane", "Fraise", "Citron", "Chien", "Chat", "Lion", "Tigre", "Oiseau"
+    ];
+
+    // Initialisation au lancement de l'application
+    function init() {
+        const savedDecks = localStorage.getItem(STORAGE_DECKS);
+        if (savedDecks) {
+            decks = JSON.parse(savedDecks);
+        } else {
+            decks = { "Général": [...DEFAULT_WORDS] };
+        }
+
+        const savedHistory = localStorage.getItem(STORAGE_HISTORY);
+        if (savedHistory) {
+            playedWords = JSON.parse(savedHistory);
+        }
+
+        document.getElementById('played-count').textContent = playedWords.length;
+        showStartScreen();
+    }
+
+    /* =========================================================================
+       ÉCRAN D'ACCUEIL (Rendu des listes)
+       ========================================================================= */
+    function showStartScreen() {
+        // Cacher le reste, afficher l'accueil
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'none';
+        document.getElementById('start-screen').style.display = 'flex';
+        
+        updateAdminSelectors();
+
+        // Rendu dynamique des cases à cocher pour les decks
+        const container = document.getElementById('deck-checkbox-container');
+        container.innerHTML = "";
+        
+        Object.keys(decks).forEach((name, index) => {
+            const label = document.createElement('label');
+            label.className = 'deck-checkbox-label';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = name;
+            // Sélectionne le premier deck par défaut pour faciliter l'utilisation
+            if (index === 0) checkbox.checked = true;
+            
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(` ${name} (${decks[name].length} mots)`));
+            container.appendChild(label);
+        });
+    }
+
+    // Mise à jour de la liste déroulante dans l'admin
+    function updateAdminSelectors() {
+        const sel = document.getElementById('target-deck-select');
+        sel.innerHTML = "";
+        Object.keys(decks).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = `${name} (${decks[name].length} mots)`;
+            sel.appendChild(opt);
+        });
+    }
+
+    /* =========================================================================
+       LANCEMENT DE LA PARTIE
+       ========================================================================= */
+    function startGame() {
+        deckSize = parseInt(document.getElementById('deck-size-input').value) || 13;
+        activeDeckNames = [];
+        let combinedWords = [];
+        
+        // Récupération des decks sélectionnés par l'utilisateur
+        const checkboxes = document.querySelectorAll('#deck-checkbox-container input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            activeDeckNames.push(cb.value);
+            combinedWords = combinedWords.concat(decks[cb.value]);
+        });
+
+        if (activeDeckNames.length === 0) {
+            alert("Veuillez sélectionner au moins un deck.");
+            return;
+        }
+
+        // Nettoyage des doublons éventuels entre decks
+        combinedWords = [...new Set(combinedWords)];
+
+        // Soustraction des mots déjà joués (historique)
+        let availableWords = combinedWords.filter(w => !playedWords.includes(w));
+        const requiredWords = deckSize * 5;
+
+        // Gestion de l'épuisement des decks : on vide l'historique lié à ces mots
+        if (availableWords.length < requiredWords) {
+            alert("Les decks sélectionnés sont épuisés ! L'historique pour ces mots a été effacé et la pile est remélangée.");
+            playedWords = playedWords.filter(w => !combinedWords.includes(w));
+            saveHistory();
+            availableWords = combinedWords; 
+        }
+
+        // Sécurité ultime si le deck est vraiment trop petit
+        if (availableWords.length < requiredWords) {
+            alert(`Attention : vos decks sélectionnés ne contiennent que ${availableWords.length} mots uniques au total. Vous avez demandé ${deckSize} cartes (soit ${requiredWords} mots). Veuillez ajouter des mots ou réduire le nombre de cartes.`);
+            return;
+        }
+
+        gameSessionWords = availableWords;
+        shuffle(gameSessionWords);
+        
+        currentCardIndex = 0;
+        score = 0;
+
+        // Transition d'écran
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'flex';
+        
+        // Affichage dynamique des noms de decks
+        let headerText = activeDeckNames.join(", ");
+        if (activeDeckNames.length > 2) headerText = `Mix (${activeDeckNames.length} decks)`;
+        document.getElementById('ui-deck-name').textContent = `Deck: ${headerText}`;
+        
+        renderCard();
+    }
+
+    /* =========================================================================
+       MOTEUR DE JEU
+       ========================================================================= */
+    function renderCard() {
+        const container = document.getElementById('card-container');
+        container.innerHTML = "";
+        selectedWord = null;
+        document.getElementById('validation-ui').style.display = 'none';
+        
+        document.getElementById('progress-text').textContent = `Carte ${currentCardIndex + 1} / ${deckSize}`;
+        document.getElementById('ui-score').textContent = score;
+
+        // Extraction des 5 mots pour la carte courante
+        const startIdx = currentCardIndex * 5;
+        const currentFive = gameSessionWords.slice(startIdx, startIdx + 5);
+
+        currentFive.forEach(word => {
+            const btn = document.createElement('button');
+            btn.className = 'word-btn';
+            btn.textContent = word;
+            btn.onclick = () => {
+                // Gestion de la sélection visuelle unique
+                document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedWord = word;
+                document.getElementById('validation-ui').style.display = 'grid';
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function handleResult(res) {
+        // Ajout du mot sélectionné à la défausse virtuelle
+        if (selectedWord) {
+            playedWords.push(selectedWord);
+            saveHistory();
+            document.getElementById('played-count').textContent = playedWords.length;
+        }
+
+        // Calcul du score et de l'avancée
+        if (res === 'win') score++;
+        if (res === 'fail') currentCardIndex++; // Pénalité
+
+        currentCardIndex++;
+        
+        // Vérification de la fin de manche
+        if (currentCardIndex >= deckSize) {
+            showEnd();
+        } else {
+            renderCard();
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'flex';
+        document.getElementById('final-score').textContent = score;
+    }
+
+    /* =========================================================================
+       ADMIN / GESTION DES DECKS
+       ========================================================================= */
+    function createNewDeck() {
+        const name = document.getElementById('new-deck-name').value.trim();
+        if (name && !decks[name]) {
+            decks[name] = [];
+            saveDecks();
+            updateAdminSelectors();
+            renderDeckList();
+            document.getElementById('new-deck-name').value = "";
+        } else if (decks[name]) {
+            alert("Ce nom de deck existe déjà.");
+        }
+    }
+
+    function renderDeckList() {
+        const container = document.getElementById('deck-list-container');
+        container.innerHTML = "<h4>Mes Decks :</h4>";
+        Object.keys(decks).forEach(name => {
+            const div = document.createElement('div');
+            div.className = 'deck-item';
+            div.innerHTML = `<span><b>${name}</b> (${decks[name].length} mots)</span>
+                             <button onclick="deleteDeck('${name}')" style="background:var(--danger); border:none; color:white; border-radius:5px; padding:6px; cursor:pointer;">Corbeille</button>`;
+            container.appendChild(div);
+        });
+    }
+
+    function deleteDeck(name) {
+        if (Object.keys(decks).length <= 1) return alert("Vous devez garder au moins un deck.");
+        if (confirm(`Supprimer intégralement le deck "${name}" ?`)) {
+            delete decks[name];
+            saveDecks();
+            updateAdminSelectors();
+            renderDeckList();
+        }
+    }
+
+    function bulkAdd() {
+        const target = document.getElementById('target-deck-select').value;
+        const text = document.getElementById('bulk-input').value;
+        // Découpage et nettoyage des mots (pas d'espaces)
+        const words = text.split(/[\n, ]+/).map(w => w.trim()).filter(w => w.length > 0 && !w.includes(' '));
+        
+        if (words.length === 0) return;
+
+        const beforeCount = decks[target].length;
+        // Fusion sans doublons
+        decks[target] = [...new Set([...decks[target], ...words])];
+        const addedCount = decks[target].length - beforeCount;
+        
+        saveDecks();
+        alert(`${addedCount} mots sans doublons ajoutés au deck "${target}".`);
+        document.getElementById('bulk-input').value = "";
+        updateAdminSelectors();
+        renderDeckList();
+    }
+
+    function handleImport(input) {
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                let importedWords = data.words || data;
+                let title = (data.metadata && data.metadata.title) || "Deck Importé";
+
+                if (confirm(`Créer un nouveau deck "${title}" avec ${importedWords.length} mots ? \n(Faites 'Annuler' pour fusionner dans le deck actuel)`)) {
+                    let finalTitle = title;
+                    let suffix = 1;
+                    while(decks[finalTitle]) {
+                        finalTitle = `${title} (${suffix})`;
+                        suffix++;
+                    }
+                    decks[finalTitle] = importedWords;
+                } else {
+                    const target = document.getElementById('target-deck-select').value;
+                    decks[target] = [...new Set([...decks[target], ...importedWords])];
+                }
+                saveDecks();
+                updateAdminSelectors();
+                renderDeckList();
+                
+                // Si on a importé un deck, on s'assure qu'il apparaît sur l'écran d'accueil si on y est
+                if (document.getElementById('start-screen').style.display !== 'none') {
+                    showStartScreen();
+                }
+            } catch (err) {
+                alert("Erreur de lecture : le fichier JSON est invalide.");
+            }
+            input.value = "";
+        };
+        reader.readAsText(file);
+    }
+
+    function exportCurrentDeck() {
+        const target = document.getElementById('target-deck-select').value;
+        const data = { metadata: { title: target, wordCount: decks[target].length }, words: decks[target] };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${target}.json`;
+        a.click();
+    }
+
+    function resetHistory() {
+        if(confirm("Effacer l'historique ? L'application vous proposera à nouveau tous les mots lors des prochaines parties.")) {
+            playedWords = [];
+            saveHistory();
+            document.getElementById('played-count').textContent = 0;
+        }
+    }
+
+    function factoryReset() {
+        if(confirm("Réinitialiser l'application entière ? Cela effacera VOS DECKS IMPORTÉS et votre historique.")) {
+            localStorage.removeItem(STORAGE_DECKS);
+            localStorage.removeItem(STORAGE_HISTORY);
+            location.reload();
+        }
+    }
+
+    /* =========================================================================
+       CONTRÔLE DES PANNEAUX
+       ========================================================================= */
+    function openAdmin() { 
+        document.getElementById('admin-panel').style.display = 'flex'; 
+        renderDeckList();
+    }
+    
+    function closeAdmin() { 
+        document.getElementById('admin-panel').style.display = 'none'; 
+        // Rafraîchir les checkboxes si on est sur l'écran d'accueil
+        if (document.getElementById('start-screen').style.display !== 'none') {
+            showStartScreen();
+        }
+    }
+    
+    function switchTab(id) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(id).classList.add('active');
+    }
+
+    function saveDecks() { localStorage.setItem(STORAGE_DECKS, JSON.stringify(decks)); }
+    function saveHistory() { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(playedWords)); }
+    
+    // Mélange Fisher-Yates
+    function shuffle(a) { 
+        for(let i=a.length-1; i>0; i--){ 
+            const j=Math.floor(Math.random()*(i+1)); 
+            [a[i],a[j]]=[a[j],a[i]]; 
+        } 
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
